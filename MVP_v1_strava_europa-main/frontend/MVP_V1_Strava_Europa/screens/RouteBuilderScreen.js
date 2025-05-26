@@ -3,23 +3,41 @@ import React, { useState, useRef } from 'react';
 import { View, Button, StyleSheet } from 'react-native';
 import MapBuilder from '../components/MapBuilder';
 import { getRoute } from '../Utils/routing';
+import RouteBuilderPanel from '../components/RouteBuilderPanel';
+
 
 export default function RouteBuilderScreen() {
-  const [points, setPoints] = useState({ start: null, end: null, waypoints: [] });
+  //const [points, setPoints] = useState({ start: null, end: null, waypoints: [] });
+  const [waypoints, setWaypoints] = useState([]);
+  const [transportMode, setTransportMode] = useState('foot');
   const [route, setRoute] = useState([]);
-
   const [gpsPos, setGpsPos] = useState(null);
 
 
-  const onMapPointSelected = (role, coords) => {
+const onMapPointSelected = (role, coords) => {
+  const label = `📍 ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
+
+  setWaypoints((prev) => {
     if (role === 'start') {
-      setPoints(prev => ({ ...prev, start: coords }));
-    } else if (role === 'end') {
-      setPoints(prev => ({ ...prev, end: coords }));
-    } else if (role === 'waypoint') {
-      setPoints(prev => ({ ...prev, waypoints: [...prev.waypoints, coords] }));
+      const others = prev.filter(p => p.role !== 'start');
+      return [{ id: 'start', role: 'start', coords, label }, ...others];
     }
-  };
+
+    if (role === 'end') {
+      const others = prev.filter(p => p.role !== 'end');
+      return [...others, { id: 'end', role: 'end', coords, label }];
+    }
+
+    if (role === 'waypoint') {
+      const id = Date.now().toString();
+      const newWaypoint = { id, role, coords, label };
+      return [...prev, newWaypoint]; // ✅ on empile sans supprimer
+    }
+
+    return prev;
+  });
+};
+
 
   const computeRoute = async () => {
     if (!points.start || !points.end) return;
@@ -72,6 +90,12 @@ const stopNavigation = () => {
   return (
     <View style={{ flex: 1 }}>
       <MapBuilder onMapPointSelected={onMapPointSelected} route={route} gpsPosition={gpsPos} />
+      <RouteBuilderPanel
+        waypoints={waypoints}
+        setWaypoints={setWaypoints}
+        transportMode={transportMode}
+        setTransportMode={setTransportMode}
+      />
       <View style={styles.buttonRow}>
         <Button title="Calculer itinéraire" onPress={computeRoute} />
       <Button title="Suivre l’itinéraire" onPress={startNavigation} disabled={tracking} />

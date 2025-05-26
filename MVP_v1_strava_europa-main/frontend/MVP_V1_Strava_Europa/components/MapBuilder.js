@@ -105,7 +105,7 @@ export default function MapBuilder({ onMapPointSelected, route, gpsPosition }) {
 
       window.ReactNativeWebView.postMessage(JSON.stringify({
         type: 'point',
-        role,
+        role: role,
         coords: [lat, lng]
       }));
 
@@ -169,20 +169,48 @@ export default function MapBuilder({ onMapPointSelected, route, gpsPosition }) {
 `;
 
 
-  return (
-    <WebView
-      ref={webviewRef}
-      originWhitelist={['*']}
-      source={{ html }}
-      style={{ flex: 1 }}
-      onMessage={(event) => {
-          const data = JSON.parse(event.nativeEvent.data);
-          if (data.type === 'point') {
-            onMapPointSelected(data.role, data.coords);
-          } else if (data.type === 'debug') {
-            console.log('[Map WebView]', data.msg);
-          }
-      }}
-    />
+/*  return (
+    <view>
+      <WebView
+        ref={webviewRef}
+        originWhitelist={['*']}
+        source={{ html }}
+        style={{ flex: 1 }}
+        onMessage={(event) => {
+            const data = JSON.parse(event.nativeEvent.data);
+            if (data.type === 'point') {
+              onMapPointSelected(data.role, data.coords);
+            } else if (data.type === 'debug') {
+              console.log('[Map WebView]', data.msg);
+            }
+        }}
+      />
+      <MapBuilder onMapPointSelected={onMapPointSelected}  />
+    </view>
+
+  );
+}*/
+
+ return (
+    
+      <WebView
+  ref={webviewRef}
+  source={{ html }}
+  style={{ flex: 1 }}
+  onMessage={(event) => {
+    const data = JSON.parse(event.nativeEvent.data);
+    console.log('[MapBuilder] point reçu', data.role, data.coords);
+
+    if (data.type === 'point') {
+      const role = data.role;
+      const coords = {
+        lat: data.coords[0],
+        lng: data.coords[1]
+      };
+      onMapPointSelected(role, coords); // ✅ ceci appelle ton callback
+    }
+  }}
+/>
+
   );
 }
