@@ -3,7 +3,7 @@ import { WebView } from 'react-native-webview';
 
 console.log("MapBuilder chargé");
 
-export default function MapBuilder({ onMapPointSelected, route, gpsPosition }) {
+export default function MapBuilder({ onMapPointSelected, route, waypoints, gpsPosition }) {
   const webviewRef = useRef(null);
 
   useEffect(() => {
@@ -17,6 +17,16 @@ export default function MapBuilder({ onMapPointSelected, route, gpsPosition }) {
       webviewRef.current?.postMessage(JSON.stringify({ type: 'gps', coords: gpsPosition }));
     }
   }, [gpsPosition]);
+
+  useEffect(() => {
+    if (webviewRef.current) {
+      webviewRef.current.postMessage(JSON.stringify({
+        type: 'waypoints',
+        points: waypoints,
+      }));
+    }
+  }, [waypoints]);
+
 
   const html = `
 <!DOCTYPE html>
@@ -62,16 +72,28 @@ export default function MapBuilder({ onMapPointSelected, route, gpsPosition }) {
 
       var content = \`
         <div>
-          <div class="popup-btn" onclick="send('start', \${latlng.lat}, \${latlng.lng})">Départ</div>
-          <div class="popup-btn" onclick="send('end', \${latlng.lat}, \${latlng.lng})">Arrivée</div>
-          <div class="popup-btn" onclick="send('waypoint', \${latlng.lat}, \${latlng.lng})">Étape</div>
-        </div>\`;
+          <div class="popup-btn" onclick="send('start', \${latlng.lat}, \${latlng.lng})">Start</div>
+          <div class="popup-btn" onclick="send('end', \${latlng.lat}, \${latlng.lng})">End</div>
+          <div class="popup-btn" onclick="send('waypoint', \${latlng.lat}, \${latlng.lng})">Step</div>
+          <div class="popup-btn" onclick="send('remove', lat, lng)">Remove</div>
+          </div>\`;
 
       L.popup()
         .setLatLng(latlng)
         .setContent(content)
         .openOn(map);
     });
+
+    marker = L.marker(latlng, {
+      icon: L.divIcon({
+        html: '<div style="color:white; font-size:11px; background:orange; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center;">' + waypointIndex + '</div>',
+        className: '',
+        iconSize: [20, 20]
+      })
+    });
+
+
+
 
     function send(role, lat, lng) {
       let marker;
@@ -83,6 +105,12 @@ export default function MapBuilder({ onMapPointSelected, route, gpsPosition }) {
           fillColor: 'limegreen',
           fillOpacity: 1,
         });
+      } else if (role === 'remove') {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'remove',
+            coords: [lat, lng]
+          }));
+          return;
       } else if (role === 'end') {
         marker = L.circleMarker([lat, lng], {
           radius: 8,
@@ -162,6 +190,43 @@ export default function MapBuilder({ onMapPointSelected, route, gpsPosition }) {
       currentTrace.push(data.coords);
       userTrace.setLatLngs(currentTrace);
     }
+      else if (data.type === 'waypoints') {
+        pointsLayer.clearLayers(); // ✅ Efface tous les anciens points
+        waypointIndex = 1;
+
+        data.points.forEach((pt) => {
+          const latlng = [pt.coords.lat, pt.coords.lng];
+          let marker;
+
+          if (pt.role === 'start') {
+            marker = L.circleMarker(latlng, {
+              radius: 8,
+              color: 'limegreen',
+              fillColor: 'limegreen',
+              fillOpacity: 1,
+            });
+          } else if (pt.role === 'end') {
+            marker = L.circleMarker(latlng, {
+              radius: 8,
+              color: 'red',
+              fillColor: 'red',
+              fillOpacity: 1,
+            });
+          } else {
+            marker = L.marker(latlng, {
+              icon: L.divIcon({
+                html: '<div style="color:white; font-size:11px; background:orange; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center;">' + waypointIndex + '</div>',
+                className: '',
+                iconSize: [20, 20]
+              })
+            });
+            waypointIndex += 1;
+          }
+
+          marker.addTo(pointsLayer);
+        });
+      }
+
     });
   </script>
 </body>
@@ -169,48 +234,26 @@ export default function MapBuilder({ onMapPointSelected, route, gpsPosition }) {
 `;
 
 
-/*  return (
-    <view>
-      <WebView
-        ref={webviewRef}
-        originWhitelist={['*']}
-        source={{ html }}
-        style={{ flex: 1 }}
-        onMessage={(event) => {
-            const data = JSON.parse(event.nativeEvent.data);
-            if (data.type === 'point') {
-              onMapPointSelected(data.role, data.coords);
-            } else if (data.type === 'debug') {
-              console.log('[Map WebView]', data.msg);
-            }
-        }}
-      />
-      <MapBuilder onMapPointSelected={onMapPointSelected}  />
-    </view>
-
-  );
-}*/
-
  return (
     
-      <WebView
-  ref={webviewRef}
-  source={{ html }}
-  style={{ flex: 1 }}
-  onMessage={(event) => {
+  <WebView
+    ref={webviewRef}
+    source={{ html }}
+    style={{ flex: 1 }}
+    onMessage={(event) => {
     const data = JSON.parse(event.nativeEvent.data);
-    console.log('[MapBuilder] point reçu', data.role, data.coords);
-
-    if (data.type === 'point') {
-      const role = data.role;
-      const coords = {
-        lat: data.coords[0],
-        lng: data.coords[1]
-      };
-      onMapPointSelected(role, coords); // ✅ ceci appelle ton callback
-    }
-  }}
-/>
+      if (data.type === 'point') {
+        const role = data.role;
+        const coords = { lat: data.coords[0], lng: data.coords[1] };
+        onMapPointSelected(role, coords);
+      } else if (data.type === 'remove') {
+        const coords = { lat: data.coords[0], lng: data.coords[1] };
+        onDeletePointAt(coords); // nouvelle fonction que tu vas créer
+      } else if (data.type === 'debug') {
+        console.log('[Map WebView]', data.msg);
+      }
+    }}
+  />
 
   );
 }

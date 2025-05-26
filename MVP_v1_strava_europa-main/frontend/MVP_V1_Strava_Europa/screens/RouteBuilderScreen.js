@@ -89,7 +89,7 @@ const stopNavigation = () => {
 
   return (
     <View style={{ flex: 1 }}>
-      <MapBuilder onMapPointSelected={onMapPointSelected} route={route} gpsPosition={gpsPos} />
+      <MapBuilder onMapPointSelected={onMapPointSelected} route={route} gpsPosition={gpsPos} waypoints={waypoints} />
       <RouteBuilderPanel
         waypoints={waypoints}
         setWaypoints={setWaypoints}
