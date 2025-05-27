@@ -4,6 +4,8 @@ import { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reani
 import TransportSelector from './TransportSelector';
 import WaypointList from './WaypointList';
 import MapBuilder from './MapBuilder';
+import { relabelWaypoints } from '../Utils/waypoints'; // ou déplace la fonction ici si c'est plus simple
+
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const MIN_HEIGHT = 80;
@@ -26,8 +28,9 @@ export default function RouteBuilderPanel({ waypoints, setWaypoints, transportMo
 
 
   const handleDelete = (id) => {
-    setWaypoints(prev => prev.filter(p => p.id !== id));
+    setWaypoints(prev => relabelWaypoints(prev.filter(p => p.id !== id)));
   };
+
   const dynamicHeight = MIN_HEIGHT + waypoints.length * 40; // base + hauteur par ligne
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
@@ -37,28 +40,30 @@ export default function RouteBuilderPanel({ waypoints, setWaypoints, transportMo
   const onMapPointSelected = (role, coords) => {
   const label = `📍 ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
 
-  if (role === 'start') {
-    setWaypoints((prev) => {
+  setWaypoints(prev => {
+    let updated;
+
+    if (role === 'start') {
       const others = prev.filter(p => p.role !== 'start');
-      return [{ id: 'start', role: 'start', coords, label }, ...others];
-    });
-  } else if (role === 'end') {
-    setWaypoints((prev) => {
+      updated = [{ id: 'start', role: 'start', coords, label }, ...others];
+    } else if (role === 'end') {
       const others = prev.filter(p => p.role !== 'end');
-      return [...others, { id: 'end', role: 'end', coords, label }];
-    });
-  } else if (role === 'waypoint') {
-    setWaypoints((prev) => {
+      updated = [...others, { id: 'end', role: 'end', coords, label }];
+    } else if (role === 'waypoint') {
       const id = Date.now().toString();
       const newStep = { id, role: 'waypoint', coords, label };
-      // insérer entre start et end si existants
       const start = prev.find(p => p.role === 'start');
       const end = prev.find(p => p.role === 'end');
       const middle = prev.filter(p => p.role === 'waypoint');
-      return [start, ...middle, newStep, end].filter(Boolean);
-    });
-  }
+      updated = [start, ...middle, newStep, end].filter(Boolean);
+    } else {
+      updated = prev;
+    }
+
+    return relabelWaypoints(updated); // 🧠 cette ligne fait toute la magie
+  });
 };
+
 
 const onDeletePointAt = (coords) => {
   const match = (p) =>
@@ -67,6 +72,9 @@ const onDeletePointAt = (coords) => {
 
   setWaypoints((prev) => prev.filter(p => !match(p)));
 };
+
+
+
 
 
 

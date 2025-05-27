@@ -50,7 +50,7 @@ const onMapPointSelected = (role, coords) => {
     setRoute(result);
   };
 
-  const [tracking, setTracking] = useState(false);
+const [tracking, setTracking] = useState(false);
 const [userTrack, setUserTrack] = useState([]);
 const watchRef = useRef(null);
 
@@ -85,6 +85,28 @@ const stopNavigation = () => {
   setTracking(false);
   console.log('Parcours réel :', userTrack);
 };
+
+/*const relabelWaypoints = (wps) => {
+  const start = wps.find(p => p.role === 'start');
+  const end = wps.find(p => p.role === 'end');
+  const middle = wps.filter(p => p.role === 'waypoint');
+
+  const labelled = [];
+
+  if (start) {
+    labelled.push({ ...start, label: 'Départ' });
+  }
+
+  middle.forEach((wp, i) => {
+    labelled.push({ ...wp, label: `Étape ${i + 1}` });
+  });
+
+  if (end) {
+    labelled.push({ ...end, label: 'Arrivée' });
+  }
+
+  return labelled;
+};*/
 
 
   return (

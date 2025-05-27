@@ -13,22 +13,34 @@ export default function MapBuilder({ onMapPointSelected, route, waypoints, gpsPo
   }, [route]);
 
   useEffect(() => {
-    if (gpsPosition) {
-      webviewRef.current?.postMessage(JSON.stringify({ type: 'gps', coords: gpsPosition }));
-    }
-  }, [gpsPosition]);
+    if (!waypoints || waypoints.length === 0) return;
 
-  useEffect(() => {
-    if (webviewRef.current) {
-      webviewRef.current.postMessage(JSON.stringify({
+    const completeWaypoints = waypoints.map((wp, idx, arr) => {
+      if (wp.role === 'waypoint') {
+        const allWaypoints = arr.filter(p => p.role === 'waypoint');
+        const position = allWaypoints.findIndex(p => p.id === wp.id);
+        return {
+          ...wp,
+          displayIndex: wp.displayIndex ?? position + 1
+        };
+      }
+      return wp;
+    });
+
+
+    webviewRef.current?.postMessage(
+      JSON.stringify({
         type: 'waypoints',
-        points: waypoints,
-      }));
-    }
+        points: completeWaypoints,
+      })
+    );
   }, [waypoints]);
 
+  console.log("WAYPOINTS SENT TO MAP:", JSON.stringify(waypoints, null, 2));
 
-  const html = `
+
+
+ const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -38,7 +50,16 @@ export default function MapBuilder({ onMapPointSelected, route, waypoints, gpsPo
   <script src="https://unpkg.com/leaflet-polylinedecorator@1.7.0/dist/leaflet.polylineDecorator.min.js"></script>
   <style>
     html, body, #map { height: 100%; margin: 0; padding: 0; }
-    .popup-btn { display: block; margin: 4px 0; padding: 4px; background: #007bff; color: white; text-align: center; border-radius: 4px; cursor: pointer; }
+    .popup-btn {
+      display: block;
+      margin: 4px 0;
+      padding: 4px;
+      background: #007bff;
+      color: white;
+      text-align: center;
+      border-radius: 4px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -50,15 +71,12 @@ export default function MapBuilder({ onMapPointSelected, route, waypoints, gpsPo
       }
     }
 
-    var map = L.map('map').setView([48.8566, 2.3522], 13);
-    var routeLine = L.polyline([], { color: 'blue', weight: 4 }).addTo(map);
-    var routeArrows;
-    var pointsLayer = L.layerGroup().addTo(map);
-    var waypointIndex = 1;
-
-    var userMarker = null;
-    var userTrace = L.polyline([], { color: 'purple' }).addTo(map);
-
+    const map = L.map('map').setView([48.8566, 2.3522], 13);
+    const routeLine = L.polyline([], { color: 'blue', weight: 4 }).addTo(map);
+    let routeArrows;
+    const pointsLayer = L.layerGroup().addTo(map);
+    let userMarker = null;
+    const userTrace = L.polyline([], { color: 'purple' }).addTo(map);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OSM contributors',
@@ -68,15 +86,13 @@ export default function MapBuilder({ onMapPointSelected, route, waypoints, gpsPo
     debug('Decorator type: ' + typeof L.polylineDecorator);
 
     map.on('contextmenu', function(e) {
-      var latlng = e.latlng;
-
-      var content = \`
+      const latlng = e.latlng;
+      const content = \`
         <div>
           <div class="popup-btn" onclick="send('start', \${latlng.lat}, \${latlng.lng})">Start</div>
           <div class="popup-btn" onclick="send('end', \${latlng.lat}, \${latlng.lng})">End</div>
           <div class="popup-btn" onclick="send('waypoint', \${latlng.lat}, \${latlng.lng})">Step</div>
-          <div class="popup-btn" onclick="send('remove', lat, lng)">Remove</div>
-          </div>\`;
+        </div>\`;
 
       L.popup()
         .setLatLng(latlng)
@@ -84,64 +100,89 @@ export default function MapBuilder({ onMapPointSelected, route, waypoints, gpsPo
         .openOn(map);
     });
 
-    marker = L.marker(latlng, {
-      icon: L.divIcon({
-        html: '<div style="color:white; font-size:11px; background:orange; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center;">' + waypointIndex + '</div>',
-        className: '',
-        iconSize: [20, 20]
-      })
-    });
-
-
-
-
     function send(role, lat, lng) {
       let marker;
+      const latlng = [lat, lng];
 
       if (role === 'start') {
-        marker = L.circleMarker([lat, lng], {
-          radius: 8,
-          color: 'limegreen',
-          fillColor: 'limegreen',
-          fillOpacity: 1,
+        marker = L.circleMarker(latlng, {
+          radius: 8, color: 'limegreen', fillColor: 'limegreen', fillOpacity: 1
         });
-      } else if (role === 'remove') {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'remove',
-            coords: [lat, lng]
-          }));
-          return;
       } else if (role === 'end') {
-        marker = L.circleMarker([lat, lng], {
-          radius: 8,
-          color: 'red',
-          fillColor: 'red',
-          fillOpacity: 1,
+        marker = L.circleMarker(latlng, {
+          radius: 8, color: 'red', fillColor: 'red', fillOpacity: 1
         });
-      } else if (role === 'waypoint') {
-        marker = L.marker([lat, lng], {
+      } else {
+        marker = L.marker(latlng, {
           icon: L.divIcon({
-            html: '<div style="color:white; font-size:11px; background:orange; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center;">' + waypointIndex + '</div>',
+            html: '<div style="color:white; font-size:11px; background:orange; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center;">?</div>',
             className: '',
             iconSize: [20, 20]
           })
         });
-        waypointIndex += 1;
       }
 
       marker.addTo(pointsLayer);
 
-      window.ReactNativeWebView.postMessage(JSON.stringify({
-        type: 'point',
-        role: role,
-        coords: [lat, lng]
-      }));
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'point',
+          role,
+          coords: [lat, lng]
+        }));
+      }
 
       map.closePopup();
     }
 
-    window.document.addEventListener("message", function(event) {
-      const data = JSON.parse(event.data);
+    function handleMessage(event) {
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch (e) {
+        debug('❌ JSON malformé');
+        return;
+      }
+
+      if (data.type === 'waypoints') {
+        debug('🔄 Mise à jour des waypoints reçue');
+        pointsLayer.clearLayers();
+        let count = 0;
+
+        data.points.forEach((pt) => {
+          if (!pt.coords || pt.coords.lat === undefined || pt.coords.lng === undefined) {
+            debug('⚠️ Point sans coordonnées ignoré');
+            return;
+          }
+
+          const latlng = [pt.coords.lat, pt.coords.lng];
+          let marker;
+
+          if (pt.role === 'start') {
+            marker = L.circleMarker(latlng, {
+              radius: 8, color: 'limegreen', fillColor: 'limegreen', fillOpacity: 1
+            });
+          } else if (pt.role === 'end') {
+            marker = L.circleMarker(latlng, {
+              radius: 8, color: 'red', fillColor: 'red', fillOpacity: 1
+            });
+          } else {
+            marker = L.marker(latlng, {
+              icon: L.divIcon({
+                html: '<div style="color:white; font-size:10px; background:orange; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center;">' + (pt.displayIndex || '?') + '</div>',
+                className: '',
+                iconSize: [22, 22]
+              })
+            });
+          }
+
+          marker.addTo(pointsLayer);
+          count++;
+        });
+
+        debug('✅ ' + count + ' point(s) redessinés');
+      }
+
       if (data.type === 'route') {
         if (!data.coords || data.coords.length === 0) {
           debug('Aucune coordonnée reçue pour tracer la route');
@@ -150,88 +191,50 @@ export default function MapBuilder({ onMapPointSelected, route, waypoints, gpsPo
 
         routeLine.setLatLngs(data.coords);
         map.fitBounds(L.latLngBounds(data.coords));
-        debug('Tracé reçu avec ' + data.coords.length + ' points');
 
         if (typeof L.polylineDecorator !== 'undefined') {
           if (routeArrows) map.removeLayer(routeArrows);
 
           routeArrows = L.polylineDecorator(routeLine, {
-            patterns: [
-              {
-                offset: 0,
-                repeat: 20,
-                symbol: L.Symbol.arrowHead({
-                  pixelSize: 8,
-                  polygon: false,
-                  pathOptions: { color: 'blue', stroke: true }
-                })
-              }
-            ]
+            patterns: [{
+              offset: 0,
+              repeat: 20,
+              symbol: L.Symbol.arrowHead({
+                pixelSize: 8,
+                polygon: false,
+                pathOptions: { color: 'blue', stroke: true }
+              })
+            }]
           }).addTo(map);
 
-          debug('Flèches ajoutées sur le tracé');
+          debug('Flèches ajoutées');
         } else {
           debug('polylineDecorator est undefined');
         }
       }
-    else if (data.type === 'gps') {
-      if (!userMarker) {
-        userMarker = L.circleMarker(data.coords, {
-          radius: 6,
-          color: 'blue',
-          fillColor: 'blue',
-          fillOpacity: 1,
-        }).addTo(map);
-      } else {
-        userMarker.setLatLng(data.coords);
-      }
 
-      var currentTrace = userTrace.getLatLngs();
-      currentTrace.push(data.coords);
-      userTrace.setLatLngs(currentTrace);
+      if (data.type === 'gps') {
+        if (!userMarker) {
+          userMarker = L.circleMarker(data.coords, {
+            radius: 6, color: 'blue', fillColor: 'blue', fillOpacity: 1
+          }).addTo(map);
+        } else {
+          userMarker.setLatLng(data.coords);
+        }
+
+        const currentTrace = userTrace.getLatLngs();
+        currentTrace.push(data.coords);
+        userTrace.setLatLngs(currentTrace);
+      }
     }
-      else if (data.type === 'waypoints') {
-        pointsLayer.clearLayers(); // ✅ Efface tous les anciens points
-        waypointIndex = 1;
 
-        data.points.forEach((pt) => {
-          const latlng = [pt.coords.lat, pt.coords.lng];
-          let marker;
-
-          if (pt.role === 'start') {
-            marker = L.circleMarker(latlng, {
-              radius: 8,
-              color: 'limegreen',
-              fillColor: 'limegreen',
-              fillOpacity: 1,
-            });
-          } else if (pt.role === 'end') {
-            marker = L.circleMarker(latlng, {
-              radius: 8,
-              color: 'red',
-              fillColor: 'red',
-              fillOpacity: 1,
-            });
-          } else {
-            marker = L.marker(latlng, {
-              icon: L.divIcon({
-                html: '<div style="color:white; font-size:11px; background:orange; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center;">' + waypointIndex + '</div>',
-                className: '',
-                iconSize: [20, 20]
-              })
-            });
-            waypointIndex += 1;
-          }
-
-          marker.addTo(pointsLayer);
-        });
-      }
-
-    });
+    window.addEventListener("message", handleMessage);
+    window.document.addEventListener("message", handleMessage);
   </script>
 </body>
 </html>
 `;
+
 
 
  return (
