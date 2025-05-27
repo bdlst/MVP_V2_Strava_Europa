@@ -6,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from '../screens/HomeScreen';
 import RouteBuilderScreen from '../screens/RouteBuilderScreen';
 import TrackingScreen from '../screens/TrackingScreen';
-import EventsScreen from '../screens/EventsScreen';
+//import EventsScreen from '../screens/EventsScreen';
+import EventsStackNavigator from './EventsStackNavigator'; 
 import YouScreen from '../screens/YouScreen';
 
 const Tab = createBottomTabNavigator();
@@ -53,7 +54,7 @@ export default function BottomTabNavigator() {
             tabBarStyle: { display: 'none' }, // 👈 cache la tab bar pour cet onglet
         }}
         />
-      <Tab.Screen name="Events" component={EventsScreen} />
+      <Tab.Screen name="Events" component={EventsStackNavigator} />
       <Tab.Screen name="You" component={YouScreen} />
     </Tab.Navigator>
   );
