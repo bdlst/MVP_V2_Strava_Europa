@@ -7,19 +7,24 @@
     "icon": "./assets/images/icon.png",
     "scheme": "mvpv1stravaeuropa",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.bdlst.mvpstravaeuropa",
+      "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "permissions": ["ACCESS_FINE_LOCATION"]
     },
-    "experiments": {
-      "typedRoutes": true
+    "extra": {
+      "eas": {
+        "projectId": "0a5aff90-bab5-4a8b-9d01-2fe0382cb048"
+      }
     }
   }
 }
+

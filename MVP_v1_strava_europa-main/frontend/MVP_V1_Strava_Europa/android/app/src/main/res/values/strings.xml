@@ -1,0 +1,4 @@
+<resources>
+  <string name="app_name">MVP V1 Strava Europa</string>
+  <string name="expo_system_ui_user_interface_style" translatable="false">automatic</string>
+</resources>
